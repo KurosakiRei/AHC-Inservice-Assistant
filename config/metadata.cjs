@@ -7,20 +7,19 @@ const {
 
 module.exports = {
   name: {
-    "": "webpack-userscript-template",
-    cn: "中文名",
-    en: "english name",
+    "": "Inservice Assistant Automation",
+    cn: "Inservice 自动化助手",
+    en: "Inservice Assistant Automation",
   },
-  namespace: "https://trim21.me/",
+  namespace: "https://github.com/KurosakiRei/inservice-assistant",
   version: version,
   author: author,
   source: repository.url,
   // 'license': 'MIT',
-  match: ["*://www.example.com/", "*://example.com/*"],
+  match: ["*://*.reach360.com/*"],
   require: [
-    `https://cdn.jsdelivr.net/npm/jquery@${dependencies.jquery}/dist/jquery.min.js`,
   ],
-  grant: ["GM.xmlHttpRequest"],
-  connect: ["httpbin.org"],
+  grant: ["GM_addStyle", "GM_setValue", "GM_getValue"],
+  connect: [],
   "run-at": "document-end",
 };

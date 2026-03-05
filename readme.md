@@ -1,111 +1,52 @@
-# The userscript template with Webpack and Vue3
+# AHC Inservice Assistant
 
-This is a template that makes you can build your userscript in a very fast and flexible way.
+> 一个为 **Always Home Care** 在职培训平台（Rise 360）设计的 Tampermonkey 用户脚本，可自动完成视频观看与知识测验，大幅节省培训时间。
 
-[此版本中文文档](https://github.com/KurosakiRei/webpack-userscript-template-with-vue3/blob/master/readme.cn.md)
+## ✨ 功能特性
 
-1. This is a personal "enhanced" version, if you don't want to use Vue3 to build your UI, you can find the original version here [trim21/webpack-userscript-template](https://github.com/trim21/webpack-userscript-template).
-2. Thank you very much [Trim21](https://github.com/trim21) for making such a useful template.
-3. This version only adds support for Vue3 on the original version, so please refer to the original readme for instructions
+- 🎬 **自动播放视频** — 以 16 倍速静音播放所有课程视频，实时监控播放状态
+- 📝 **自动答题** — 根据内置题库自动选择正确答案并提交
+- ▶️ **自动翻页** — 自动点击"继续 / Continue / 完成"按钮，处理 Rise 360 懒加载内容
+- 🔒 **智能防误触** — 视频播放中、测验未提交时，均不会误点继续按钮
+- 🖱️ **可拖动浮窗** — 右上角浮窗可随意拖拽，不遮挡课程内容
+- 🎉 **课程完成自动停止** — 检测到完成页面后自动停止
 
-## Features✨
+## 🚀 使用方法
 
-* Vue3 support
-* Sass support
-* Degrade the @types/greasemonkey to V3 that supports more GM_* functions than its V4
+1. 安装 [Tampermonkey](https://www.tampermonkey.net/) 浏览器扩展
+2. 将编译好的 `dist/*.user.js` 文件安装到 Tampermonkey
+3. 打开 Always Home Care 培训平台课程页面
+4. 页面右上角出现 **Inservice Assistant** 浮窗
+5. 点击 **Start Automation** 开始，**Stop Automation** 随时停止
 
-## Special Note📝
+## 🛠️ 开发构建
 
-Livereload seems to be only available under the tampermonkey plugin. If you are using a "monkey" other than tampermonkey, such as violent monkey, please replace it with tampermonkey to develop your script
+```bash
+# 安装依赖
+npm install
 
-## The following is the readme copy from the original repository:
+# 开发模式（监听变化，实时构建）
+npm run dev
+
+# 生产构建
+npm run build
+```
+
+构建产物位于 `dist/` 目录，安装 `dist/index.prod.user.js` 到 Tampermonkey 即可。
+
+## 📚 技术栈
+
+| 技术         | 说明             |
+| ------------ | ---------------- |
+| Vue 3        | 浮窗 UI 框架     |
+| TypeScript   | 逻辑层类型安全   |
+| Webpack 5    | 打包构建         |
+| Tampermonkey | 用户脚本运行环境 |
+
+## 📄 声明
+
+本项目仅供个人学习与内部使用，请勿用于商业目的。
 
 ---
 
-> # This is a project help you build userscript with webpack
->
-> Just [use this git repo as a template](https://github.com/Trim21/webpack-userscript-template/generate).
->
-> [中文说明](./readme.cn.md)
->
-> ## dev
->
-> 1. Allow Tampermonkey's access to local file URIs [tampermonkey/faq](https://tampermonkey.net/faq.php?ext=dhdg#Q204)
-> 2. install deps with `npm i` or `npm ci`.
-> 3. `npm run dev` to start your development.
->
-> Now you will see 2 files in `./dist/`
->
-> -   `dist/index.dev.user.js`: **You should install this userscript in your browser.** It's a simple loader that load `dist/index.debug.js` on matched web page.
-> -   `dist/index.debug.js`: This is the development build with `eval-source-map`. It will be automatically loaded by `dist/index.dev.user.js` via `@require file://.../dist/index.debug.js` metadata, **Don't add it to your userscript manager.**
->
-> 4. edit [src/index.ts](./src/index.ts), you can even import css or less files. You can use scss if you like.
-> 5. go wo <https://www.example.com/> and open console, you'll see it's working.
->
-> livereload is default enabled, use [this Chrome extension](https://chrome.google.com/webstore/detail/jnihajbhpnppcggbcgedagnkighmdlei)
->
-> ### NOTICE
->
-> Everytime you change your metadata config,
-> you'll have to restart webpack server and install newly generated `dist/index.dev.user.js` UserScript in your browser again.
->
-> ## used package
->
-> If you prefer some other bundler like rollup, you may use part of some of these packages.
->
-> [userscript-metadata-generator](https://github.com/trim21/userscript-metadata-generator)
->
-> [gm-fetch](https://github.com/trim21/gm-fetch)
->
-> [userscript-metadata-webpack-plugin](https://github.com/trim21/userscript-metadata-webpack-plugin)
->
->
-> ## Cross Site Request
->
-> you can call `GM.xmlHttpRequest` directly or use a fetch API based on `GM.xmlHttpRequest` <https://github.com/Trim21/gm-fetch>
->
-> ## TypeScript
->
-> use typescript as normal, see [example](src/index.ts)
->
-> ## dependencies
->
-> There are two ways to using a package on npm.
->
-> ### UserScript way
->
-> like original UserScript way, you will need to add them to your [user script metadata's require section](./config/metadata.cjs#L16-L18) , and exclude them in [config/webpack.config.base.cjs](./config/webpack.config.base.cjs#L18-L20)
->
-> ### Webpack way
->
-> just install packages with npm and import them in your code, webpack will take care them.
->
-> ## Build
->
-> ```bash
-> npm run build
-> ```
->
-> `dist/index.prod.user.js` is the final script. you can manually copy it to greasyfork for deploy.
->
-> ### Minify
->
-> There is a [limitation in greasyfork](https://greasyfork.org/en/help/code-rules), your code must not be obfuscated or minified.
->
-> If you don't need to deploy your script to greasyfork, enable minify as you like.
->
-> ## automatically Deploy
->
-> [github actions](./.github/workflows/deploy.yaml#L36) will deploy production userscript to gh-pages branch.
->
-> [example](https://github.com/Trim21/webpack-userscript-template/tree/gh-pages)
->
-> [deployed](https://trim21.github.io/webpack-userscript-template/)
->
-> You can auto use greasyfork's auto update function.
->
-> ## Q&A
->
-> you may find enabling source map not working well in production code, because Tampermonkey will add extra lines (all your `@require`) before your script. I don't know if there is a good fix for this, You need to use webpack config `devtool` with `eval` prefix to make it work as expected, so source map is disabled in this production build.
->
-> <https://webpack.js.org/configuration/devtool/#development>
+*Powered by KurosakiRei*
