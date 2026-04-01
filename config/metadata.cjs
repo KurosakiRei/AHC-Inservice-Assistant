@@ -22,4 +22,8 @@ module.exports = {
   grant: ["GM_addStyle", "GM_setValue", "GM_getValue"],
   connect: [],
   "run-at": "document-end",
+  updateURL:
+    "https://raw.githubusercontent.com/KurosakiRei/AHC-Inservice-Assistant/dist/index.prod.user.js",
+  downloadURL:
+    "https://raw.githubusercontent.com/KurosakiRei/AHC-Inservice-Assistant/dist/index.prod.user.js",
 };
