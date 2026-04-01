@@ -3,7 +3,7 @@ name: deploy
 on:
   push:
     branches:
-      - v*
+      - dev
 
 permissions:
   contents: write
@@ -22,6 +22,9 @@ jobs:
 
       - run: npm ci
       - run: npm run build
+
+      - name: Remove non-prod build artifacts
+        run: rm -f dist/index.debug.js dist/index.dev.user.js
 
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v4
