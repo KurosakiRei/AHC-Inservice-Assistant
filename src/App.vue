@@ -15,7 +15,7 @@
       <button v-else @click="toggleAutomation(false)" class="ia-btn danger">Stop Automation</button>
 
       <div class="ia-footer">
-        <span class="ia-version">v 1.0.0</span>
+        <span class="ia-version">v 1.1.2</span>
         <span class="ia-credit">Powered by KurosakiRei</span>
       </div>
     </div>

@@ -49,4 +49,27 @@ npm run build
 
 ---
 
+## 📝 更新日志
+
+### v1.1.2（2026-04-15）
+
+- 修复 Reach360 一次一题测验卡无法自动作答的问题
+  - 根因：平台在提交前以 `opacity: 0` 预渲染"再试一次"按钮，旧逻辑仅检测高度 > 0 导致误判为已完成
+  - 改为同时检测 `height > 0` 且 `computed opacity > 0`，准确识别提交状态
+
+### v1.1.1（2026-04-15）
+
+- 修复 Reach360 平台多项运行时兼容问题
+  - **iframe 选择**：从始终取第一个 iframe 改为优先匹配 `reach360.com/frame/learn`
+  - **滚动容器**：从 `window.scrollTo()` 改为滚动 `.page-wrap`（平台对 body 设 `overflow:hidden`）
+  - **侧边栏查询**：从主文档改为在 iframe 内查询，修复进度百分比读取
+  - **继续按钮可见性**：使用 iframe 自身 `innerHeight` 而非主窗口
+
+### v1.1.0
+
+- 新增 In Service B 课程全套题库
+- 安全依赖更新，新增 CI/CD 自动部署
+
+---
+
 *Powered by KurosakiRei*
