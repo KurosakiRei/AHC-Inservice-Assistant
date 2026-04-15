@@ -3,7 +3,7 @@
 // @name:cn       Inservice 自动化助手
 // @name:en       Inservice Assistant Automation
 // @namespace     https://github.com/KurosakiRei/inservice-assistant
-// @version       1.0.0
+// @version       1.1.1
 // @author        KurosakiRei <kurosakirei@outlook.com>
 // @source        https://github.com/KurosakiRei/AHC-Inservice-Assistant.git
 // @match         *://*.reach360.com/*
@@ -13385,16 +13385,26 @@ class AutomationEngine {
     }
     getDocScope() {
         let docScope = document;
-        const iframe = document.querySelector("iframe");
-        if (iframe && window.top === window.self) {
+        if (window.top !== window.self)
+            return docScope;
+        // Find the Reach360 content iframe by checking for a meaningful title.
+        // document.querySelector("iframe") returns the first iframe which is always
+        // a blank placeholder; the actual content is in a later iframe.
+        const iframes = Array.from(document.querySelectorAll("iframe"));
+        const reach360Iframe = iframes.find((f) => {
             try {
-                if (iframe.contentDocument) {
-                    docScope = iframe.contentDocument;
-                }
+                const src = f.src || "";
+                if (src.includes("reach360.com/frame/learn"))
+                    return true;
+                // Fallback: any same-origin iframe that has a real document title
+                return !!f.contentDocument?.title && f.contentDocument.title.length > 5;
             }
             catch (e) {
-                // Cross-origin iframe
+                return false;
             }
+        });
+        if (reach360Iframe?.contentDocument) {
+            docScope = reach360Iframe.contentDocument;
         }
         return docScope;
     }
@@ -13495,16 +13505,14 @@ class AutomationEngine {
             const card = qEl.closest(".quiz-card, .block-knowledge-check, section, .blocks-lesson");
             if (!card)
                 continue;
-            // Skip if this card already has visible feedback (already graded)
-            const feedback = card.querySelector(".quiz-card-feedback, .quiz-card__feedback");
-            if (feedback) {
-                const fel = feedback;
-                const frect = fel.getBoundingClientRect();
-                if (frect.height > 0 &&
-                    fel.textContent &&
-                    fel.textContent.trim().length > 0) {
-                    continue; // Already answered and graded
-                }
+            // Skip if this card already has the retake button visible.
+            // Reach360 always keeps .quiz-card__feedback at height:0 via CSS even after
+            // submission, so height-based detection is unreliable. The retake button
+            // (.block-knowledge__retake) only becomes rendered (height > 0) after the
+            // card has been successfully submitted.
+            const retakeBtn = card.querySelector(".block-knowledge__retake");
+            if (retakeBtn && retakeBtn.getBoundingClientRect().height > 0) {
+                continue; // Already submitted — retake button is showing
             }
             // Get choices within this card only
             const choices = Array.from(card.querySelectorAll('input[type="radio"], input[type="checkbox"]'));
@@ -13551,7 +13559,8 @@ class AutomationEngine {
         // If the current lesson is marked complete in the sidebar, all its videos are done.
         // The sidebar is always in the main document (not iframe), so we check document.
         const currentLessonId = window.location.href.split("/lessons/")[1]?.split("?")[0] || "";
-        const sidebarItems = Array.from(document.querySelectorAll(".nav-sidebar__outline-item"));
+        // Sidebar is inside the iframe (doc), NOT in the main document.
+        const sidebarItems = Array.from(doc.querySelectorAll(".nav-sidebar__outline-item"));
         const currentSidebarItem = sidebarItems.find((item) => {
             const href = item.querySelector("a")?.getAttribute("href") || "";
             return href.includes(currentLessonId);
@@ -13667,8 +13676,12 @@ class AutomationEngine {
         // Rise 360 lazy-renders content below the video (summary cards, continue button)
         // only when that content scrolls into view. We scroll to the bottom now to
         // trigger IntersectionObserver rendering so tryClickContinue can find the button.
-        const win = doc.defaultView || window;
-        win.scrollTo({ top: doc.documentElement.scrollHeight, behavior: "smooth" });
+        // NOTE: Reach360 sets html/body to overflow:hidden. The actual scroll container
+        // is div.page-wrap inside the iframe — win.scrollTo() has no effect.
+        const pageWrapEnd = doc.querySelector(".page-wrap");
+        if (pageWrapEnd) {
+            pageWrapEnd.scrollTo({ top: pageWrapEnd.scrollHeight, behavior: "smooth" });
+        }
         return false;
     }
     /**
@@ -13677,14 +13690,22 @@ class AutomationEngine {
      */
     tryClickContinue(doc) {
         // === QUIZ PENDING GUARD ===
-        // If any quiz card on the current page has no feedback (unanswered or unsubmitted),
-        // block ALL lesson-nav banner clicks. We may still click generic CONTINUE buttons
-        // that appear after individual quiz submissions.
+        // If any quiz card on the current page hasn't been submitted yet, block ALL
+        // lesson-nav banner clicks. We detect submission by checking whether the
+        // retake button (.block-knowledge__retake) is visible (height > 0). Reach360
+        // always keeps .quiz-card__feedback at height:0 via CSS (even after submission),
+        // so feedback height is never a reliable indicator.
         const quizCards = Array.from(doc.querySelectorAll(".quiz-card"));
         const hasPendingQuiz = quizCards.some((card) => {
-            const feedback = card.querySelector('[class*="quiz-card__feedback"]');
-            const feedbackH = feedback ? feedback.getBoundingClientRect().height : 0;
-            return feedbackH === 0; // No feedback shown = not yet submitted
+            // Retake button becomes visible after a card is submitted
+            const retakeBtn = card.querySelector(".block-knowledge__retake");
+            if (retakeBtn && retakeBtn.getBoundingClientRect().height > 0)
+                return false; // Done
+            // A checked radio means the user selected an answer (submit step will follow)
+            const hasChecked = card.querySelector('input[type="radio"]:checked, input[type="checkbox"]:checked');
+            if (hasChecked)
+                return false;
+            return true; // No retake visible, no answer selected → still pending
         });
         // === VIDEO PENDING GUARD ===
         // Block ALL "Continue" and lesson-nav banner clicks if there's any visible video
@@ -13716,13 +13737,14 @@ class AutomationEngine {
         // Finish-only phrases — ONLY allowed when sidebar shows 100% completion.
         // These words may appear in quiz feedback or lesson content, so we guard them strictly.
         const finishOnlyPhrases = ["完成", "finish", "done"];
-        // Check sidebar completion percentage (always in main document, not in iframe)
-        const sidebarPercentEl = document.querySelector('.nav-sidebar__completion-percentage, [class*="percent"], [class*="completion"]');
+        // Check sidebar completion — sidebar lives inside the iframe (doc), not main document.
+        const sidebarPercentEl = doc.querySelector('.nav-sidebar-header__progress-text, .nav-sidebar__completion-percentage, [class*="percent"]');
         const sidebarText = (sidebarPercentEl?.textContent || "").replace(/\s/g, "");
         const courseIs100Pct = sidebarText.includes("100%") ||
-            (document.querySelectorAll(".nav-sidebar__outline-item--complete")
+            sidebarText.includes("已完成") ||
+            (doc.querySelectorAll(".nav-sidebar__outline-item--complete")
                 .length > 0 &&
-                document.querySelectorAll(".nav-sidebar__outline-item:not(.nav-sidebar__outline-item--complete)").length === 0);
+                doc.querySelectorAll(".nav-sidebar__outline-item:not(.nav-sidebar__outline-item--complete)").length === 0);
         // Process from bottom to top (last/newest element first)
         for (let i = candidates.length - 1; i >= 0; i--) {
             const btn = candidates[i];
@@ -13763,20 +13785,23 @@ class AutomationEngine {
             const rect = btn.getBoundingClientRect();
             if (rect.width === 0 || rect.height === 0)
                 continue;
-            // Scroll into view if needed, then click
-            if (rect.top > window.innerHeight || rect.bottom < 0) {
+            // Scroll into view if needed, then click.
+            // Use the iframe's own innerHeight for the comparison (not main window).
+            const iframeInnerH = (doc.defaultView || window).innerHeight;
+            if (rect.top > iframeInnerH || rect.bottom < 0) {
                 btn.scrollIntoView({ behavior: "smooth", block: "center" });
             }
             btn.click();
             this.logStatus(`Clicked "${(btn.textContent || "").trim().substring(0, 20)}" button.`);
             // After clicking Continue, Rise 360 lazy-loads the next content section below.
-            // Scroll to page bottom so the next Continue button (if any) renders in the DOM.
+            // Scroll div.page-wrap to bottom so newly rendered blocks enter the viewport.
+            // NOTE: win.scrollTo() is a no-op here because Reach360 sets html/body to
+            // overflow:hidden; the real scroll container is div.page-wrap.
             setTimeout(() => {
-                const win = doc.defaultView || window;
-                win.scrollTo({
-                    top: doc.documentElement.scrollHeight + 9999,
-                    behavior: "smooth",
-                });
+                const pageWrap = doc.querySelector(".page-wrap");
+                if (pageWrap) {
+                    pageWrap.scrollTo({ top: pageWrap.scrollHeight, behavior: "smooth" });
+                }
             }, 600);
             return true;
         }

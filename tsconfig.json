@@ -3,7 +3,7 @@
     "outDir": "./dist/",
     "esModuleInterop": true,
     "noImplicitAny": true,
-    "moduleResolution": "Node",
+    "moduleResolution": "node",
     "module": "ESNext",
     "target": "ES2020",
     "allowJs": true
