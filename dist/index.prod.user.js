@@ -13505,14 +13505,18 @@ class AutomationEngine {
             const card = qEl.closest(".quiz-card, .block-knowledge-check, section, .blocks-lesson");
             if (!card)
                 continue;
-            // Skip if this card already has the retake button visible.
-            // Reach360 always keeps .quiz-card__feedback at height:0 via CSS even after
-            // submission, so height-based detection is unreliable. The retake button
-            // (.block-knowledge__retake) only becomes rendered (height > 0) after the
-            // card has been successfully submitted.
+            // Skip if this card already has the retake button visibly shown.
+            // Reach360 pre-renders the retake button in the DOM with opacity:0 (inside a
+            // max-height:0 container with overflow:visible), so getBoundingClientRect
+            // returns height=32 even BEFORE the card is submitted. We must also check
+            // computed opacity to confirm the button is actually visible to the user.
             const retakeBtn = card.querySelector(".block-knowledge__retake");
             if (retakeBtn && retakeBtn.getBoundingClientRect().height > 0) {
-                continue; // Already submitted — retake button is showing
+                const cardWin = doc.defaultView || window;
+                const retakeOpacity = parseFloat(cardWin.getComputedStyle(retakeBtn).opacity);
+                if (retakeOpacity > 0) {
+                    continue; // Submitted — retake button is actually visible (opacity > 0)
+                }
             }
             // Get choices within this card only
             const choices = Array.from(card.querySelectorAll('input[type="radio"], input[type="checkbox"]'));
@@ -13680,7 +13684,10 @@ class AutomationEngine {
         // is div.page-wrap inside the iframe — win.scrollTo() has no effect.
         const pageWrapEnd = doc.querySelector(".page-wrap");
         if (pageWrapEnd) {
-            pageWrapEnd.scrollTo({ top: pageWrapEnd.scrollHeight, behavior: "smooth" });
+            pageWrapEnd.scrollTo({
+                top: pageWrapEnd.scrollHeight,
+                behavior: "smooth",
+            });
         }
         return false;
     }
@@ -13697,15 +13704,21 @@ class AutomationEngine {
         // so feedback height is never a reliable indicator.
         const quizCards = Array.from(doc.querySelectorAll(".quiz-card"));
         const hasPendingQuiz = quizCards.some((card) => {
-            // Retake button becomes visible after a card is submitted
+            // A card is "done" when its retake button is visibly rendered (opacity > 0).
+            // Reach360 pre-renders the retake button with opacity:0 before submission,
+            // so we must check BOTH height > 0 AND opacity > 0.
             const retakeBtn = card.querySelector(".block-knowledge__retake");
-            if (retakeBtn && retakeBtn.getBoundingClientRect().height > 0)
-                return false; // Done
+            if (retakeBtn && retakeBtn.getBoundingClientRect().height > 0) {
+                const cardWin = doc.defaultView || window;
+                const retakeOpacity = parseFloat(cardWin.getComputedStyle(retakeBtn).opacity);
+                if (retakeOpacity > 0)
+                    return false; // Visibly done (submitted)
+            }
             // A checked radio means the user selected an answer (submit step will follow)
             const hasChecked = card.querySelector('input[type="radio"]:checked, input[type="checkbox"]:checked');
             if (hasChecked)
                 return false;
-            return true; // No retake visible, no answer selected → still pending
+            return true; // Not yet submitted → pending
         });
         // === VIDEO PENDING GUARD ===
         // Block ALL "Continue" and lesson-nav banner clicks if there's any visible video
@@ -13742,8 +13755,8 @@ class AutomationEngine {
         const sidebarText = (sidebarPercentEl?.textContent || "").replace(/\s/g, "");
         const courseIs100Pct = sidebarText.includes("100%") ||
             sidebarText.includes("已完成") ||
-            (doc.querySelectorAll(".nav-sidebar__outline-item--complete")
-                .length > 0 &&
+            (doc.querySelectorAll(".nav-sidebar__outline-item--complete").length >
+                0 &&
                 doc.querySelectorAll(".nav-sidebar__outline-item:not(.nav-sidebar__outline-item--complete)").length === 0);
         // Process from bottom to top (last/newest element first)
         for (let i = candidates.length - 1; i >= 0; i--) {
